@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"log"
 	"net/http"
+	"strings"
 	"sync/atomic"
 )
 
@@ -57,11 +58,13 @@ func (cfg *apiConfig) validateChirp(w http.ResponseWriter, r *http.Request) {
 	}
 
 	type returnvalidity struct {
-		Valid bool `json:"valid"`
+		CleanedBody string `json:"cleaned_body"`
 	}
 	defReturnErrs := returnErrs{}
 	defReturnVal := returnvalidity{}
-	if len(availableChirps.Body) > 140 {
+	lowerBody := availableChirps.Body
+	profain := []string{"kerfuffle", "sharbert", "fornax"}
+	if len(lowerBody) > 140 {
 		defReturnErrs.Error = "Chirp is too long"
 		w.WriteHeader(400)
 		data, err := json.Marshal(defReturnErrs)
@@ -73,7 +76,24 @@ func (cfg *apiConfig) validateChirp(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
 		w.Write(data)
 	} else {
-		defReturnVal.Valid = true
+		cleanedWords := []string{}
+		sepBodyResp := strings.Split(lowerBody, " ")
+		for _, singleWord := range sepBodyResp {
+			isProfane := false
+			for _, profainWords := range profain {
+				if strings.ToLower(profainWords) == strings.ToLower(singleWord) {
+					isProfane = true
+					break
+				}
+			}
+			if isProfane {
+				cleanedWords = append(cleanedWords, "****")
+			} else {
+				cleanedWords = append(cleanedWords, singleWord)
+			}
+
+		}
+		defReturnVal.CleanedBody = strings.Join(cleanedWords, " ")
 		w.WriteHeader(200)
 		data, err := json.Marshal(defReturnVal)
 		if err != nil {
